@@ -1,9 +1,10 @@
+import boto3
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-AWS_REGION = os.getenv("AWS_REGION")
+AWS_REGION = boto3.Session().region_name or "ap-south-1"
 
 S3_BUCKET = os.getenv("BUCKET_NAME")
 

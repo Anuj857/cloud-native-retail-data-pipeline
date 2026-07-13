@@ -91,6 +91,19 @@ resource "aws_iam_policy" "lambda_policy" {
 
         Resource = aws_dynamodb_table.products.arn
 
+      },
+      {
+        Effect = "Allow"
+
+        Action = [
+
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+
+        ]
+
+        Resource = "*"
       }
 
     ]

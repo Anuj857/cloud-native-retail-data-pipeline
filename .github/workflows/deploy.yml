@@ -1,4 +1,4 @@
-name: Retail ETL CI/CD Pipeline
+name: Retail ETL CI/CD
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  test-and-package:
+  test-and-deploy:
 
     runs-on: ubuntu-latest
 
@@ -18,24 +18,56 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.12"
 
-      - name: Install Dependencies
+      - name: Install Test Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r src/requirements.txt
 
-      - name: Run Pytest
+      - name: Run Unit Tests
         run: |
           pytest -v
 
-      - name: Package Lambda
+      - name: Build Lambda Package
         run: |
           mkdir build
+          pip install -r requirements-lambda.txt -t build
           cp -r src/* build/
+          cd build
+          zip -r ../lambda.zip .
 
-      - name: Upload Build Artifact
+      - name: Upload Lambda Artifact
         uses: actions/upload-artifact@v4
         with:
           name: lambda-package
-          path: build/
+          path: lambda.zip
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name RetailPipelineLambda \
+            --zip-file fileb://lambda.zip
+
+      - name: Wait for Lambda Update
+        run: |
+          aws lambda wait function-updated \
+            --function-name RetailPipelineLambda
+
+      - name: Invoke Lambda
+        run: |
+          aws lambda invoke \
+            --function-name RetailPipelineLambda \
+            --payload '{}' \
+            response.json
+
+      - name: Show Lambda Response
+        run: |
+          cat response.json
