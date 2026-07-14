@@ -40,7 +40,17 @@ def lambda_handler(event, context):
 
     s3_client.upload_json(
         products,
-        s3_key
+        f"{RAW_PRODUCTS_PATH}/{file_name}"
+    )
+
+    curated_key = file_name.replace(
+        "products",
+        "products"
+    )
+
+    s3_client.upload_json_lines(
+        products,
+        f"curated/products/{curated_key}"
     )
 
     # Transform
