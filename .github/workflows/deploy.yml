@@ -1,15 +1,12 @@
-name: Retail ETL CI/CD Pipeline
+name: Retail ETL CI
 
 on:
   push:
     branches:
       - main
 
-permissions:
-  contents: read
-
 jobs:
-  test-build-deploy:
+  build-and-test:
 
     runs-on: ubuntu-latest
 
@@ -27,76 +24,38 @@ jobs:
         run: |
           python -m pip install --upgrade pip
 
-      - name: Install Test Dependencies
+      - name: Install Dependencies
         run: |
-          pip install --no-cache-dir -r src/requirements.txt
+          pip install -r src/requirements.txt
 
       - name: Run Unit Tests
         run: |
           pytest -v
 
-      - name: Create Build Directory
+      - name: Create Build Folder
         run: |
-          mkdir -p build
+          mkdir build
 
       - name: Install Lambda Dependencies
         run: |
-          pip install --no-cache-dir -r requirements-lambda.txt -t build
+          pip install -r requirements-lambda.txt -t build
 
-      - name: Copy Source Code
+      - name: Copy Source
         run: |
           cp -r src/* build/
 
-      - name: Build Lambda ZIP
+      - name: Create Lambda ZIP
         run: |
           cd build
           zip -r ../lambda.zip .
 
-      - name: Verify Lambda Package
+      - name: Verify ZIP
         run: |
           ls -lh
-          unzip -l lambda.zip | head -30
+          unzip -l lambda.zip | head -20
 
-      - name: Upload Lambda Artifact
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: lambda-package
           path: lambda.zip
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
-
-      - name: Verify AWS Credentials
-        run: |
-          aws sts get-caller-identity
-
-      - name: Verify Lambda Exists
-        run: |
-          aws lambda get-function \
-            --function-name RetailPipelineLambda
-
-      - name: Deploy Lambda
-        run: |
-          aws lambda update-function-code \
-            --function-name RetailPipelineLambda \
-            --zip-file fileb://lambda.zip
-
-      - name: Wait for Lambda Deployment
-        run: |
-          aws lambda wait function-updated \
-            --function-name RetailPipelineLambda
-
-      - name: Invoke Lambda
-        run: |
-          aws lambda invoke \
-            --function-name RetailPipelineLambda \
-            --payload '{}' \
-            response.json
-
-      - name: Show Lambda Response
-        run: |
-          cat response.json
